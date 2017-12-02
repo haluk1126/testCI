@@ -6,5 +6,6 @@ class FooTest extends \PHPUnit\Framework\TestCase
         // 第1引数には期待される値
         // 第2引数には、テスト対象のメソッドを記述
         $this->assertEquals(0, 0);
+        
     }
 }
