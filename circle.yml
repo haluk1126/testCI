@@ -1,8 +1,49 @@
-machine:
-  timezone: Asia/Tokyo
-  php:
-    version: 7.1.11
-    
-test:
-  override:
-    - phpunit foo_test
+version: 2
+jobs:
+  build:
+    docker:
+      # dockerのimageを指定する
+      - image: circleci/php:7.1.8-browsers
+
+      # 必要に応じて、他のdockerの依存関係を設定する
+      # CircleCIはあらかじめビルド済みのイメージを持っている
+      # 所持している内容は→　https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/mysql:9.4
+
+    working_directory: ~/repo
+
+    environment:
+      - CODACY_PROJECT_TOKEN: "cd1fea617bed49469e567d6faf76944c"
+    steps:
+      # リポジトリのclone
+      - checkout
+
+      # xdebugを追加
+      - run: sudo docker-php-ext-enable xdebug
+
+      # debug用にphpの情報を出力
+      - run: php -i
+
+      # circle ciのキャッシュ機構を使用し、キャッシュからデータを取り出す
+      # キャッシュが見当たらない場合は、checksumした結果がないようにして、ヒットしないようにする
+      - restore_cache:
+          keys:
+          - composer-v1-{{ checksum "composer.lock" }}
+          - composer-v1-
+
+      - run: composer install -n --prefer-dist
+
+      # vendorの内容をcircle ciのキャッシュに保存する
+      - save_cache:
+          key: composer-v1-{{ checksum "composer.lock" }}
+          paths:
+            - ./vendor
+
+      # envファイルのコピー
+      - run: cp .env.example .env
+
+      # テストの実行
+      - run: vendor/phpunit/phpunit/phpunit --configuration phpunit.xml tests --coverage-clover=build/coverage.xml
+
+      # 実行結果をcodacyに保存
+      - run: vendor/bin/codacycoverage clover build/coverage.xml
